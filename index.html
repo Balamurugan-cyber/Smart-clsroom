@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Room Booking System</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --light: #ecf0f1;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .booking-system {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .system-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .booking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+        }
+        .booking-table th {
+            background: var(--primary);
+            color: white;
+            padding: 1rem;
+        }
+        .booking-table td {
+            border: 1px solid #dee2e6;
+            padding: 1rem;
+        }
+        .booking-input {
+            width: 100%;
+            padding: 0.6rem;
+            margin: 0.3rem 0;
+            border-radius: 4px;
+        }
+        .booking-btn {
+            background: var(--secondary);
+            color: white;
+            padding: 0.7rem;
+            width: 100%;
+            cursor: pointer;
+        }
+        .booking-btn:hover {
+            background: #2980b9;
+        }
+        .booking-status {
+            font-size: 0.9rem;
+            color: var(--success);
+            padding: 0.5rem;
+            background: rgba(39, 174, 96, 0.1);
+            border-radius: 4px;
+        }
+        .purpose-container {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: var(--light);
+            border-radius: 8px;
+        }
+        .purpose-item {
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: white;
+            border-left: 4px solid var(--success);
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="booking-system">
+        <header class="system-header">
+            <h1>Smart Room Booking System</h1>
+            <button onclick="showAllPurposes()" class="booking-btn">Show All Bookings</button>
+        </header>
+
+        <table class="booking-table">
+            <tr>
+                <th>Day / Period</th>
+                <th>Date</th>
+                <th>Period 1</th>
+                <th>Period 2</th>
+                <th>Period 3</th>
+                <th>Period 4</th>
+                <th>Period 5</th>
+                <th>Period 6</th>
+                <th>Period 7</th>
+                <th>Period 8</th>
+            </tr>
+            <script>
+                const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+                const today = new Date();
+                const startDate = new Date(today);
+                startDate.setDate(today.getDate() - today.getDay() + 1);
+
+                days.forEach((day, index) => {
+                    const currentDate = new Date(startDate);
+                    currentDate.setDate(startDate.getDate() + index);
+                    const formattedDate = currentDate.toISOString().split('T')[0];
+                    document.write(`<tr><td><strong>${day}</strong></td><td>${formattedDate}</td>`);
+                    for (let period = 1; period <= 8; period++) {
+                        document.write(`
+                            <td>
+                                <input class="booking-input" type="text" placeholder="Name" id="name_${day}_${period}">
+                                <input class="booking-input" type="text" placeholder="Department" id="dept_${day}_${period}">
+                                <input class="booking-input" type="text" placeholder="Purpose" id="purpose_${day}_${period}">
+                                <button onclick="bookSlot('${day}', ${period})" class="booking-btn">Book</button>
+                                <div id="status_${day}_${period}" class="booking-status"></div>
+                            </td>`);
+                    }
+                    document.write('</tr>');
+                });
+            </script>
+        </table>
+
+        <div id="purposeList" class="purpose-container"></div>
+    </div>
+    <script>
+        function fetchData() {
+            fetch('https://script.google.com/macros/s/AKfycbxMm3M3_avH3PmEZUlAjU_B5-nOKgczqPdMrBBkZN5NENC6iKr91XvyyZou0ViENXBf/exec')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('output').innerText = JSON.stringify(data, null, 2);
+            })
+            .catch(error => console.error('Error fetching data:', error));
+        }
+    </script>
+    <script>
+        
+        let allBookings = JSON.parse(localStorage.getItem('roomBookings')) || {};
+        const GOOGLE_SHEETS_API_URL = "";
+
+        async function bookSlot(day, period) {
+            const name = document.getElementById(`name_${day}_${period}`).value;
+            const dept = document.getElementById(`dept_${day}_${period}`).value;
+            const purpose = document.getElementById(`purpose_${day}_${period}`).value;
+            const button = document.querySelector(`button[onclick="bookSlot('${day}', ${period})"]`);
+
+            if (name && dept && purpose) {
+                const key = `${day}-${period}`;
+                allBookings[key] = { name, dept, purpose };
+                document.getElementById(`status_${day}_${period}`).innerHTML = `<strong>${purpose}</strong><br><small>${name} (${dept})</small>`;
+                button.innerHTML = '✓ Booked!';
+                button.style.backgroundColor = '#27ae60';
+                button.disabled = true;
+                localStorage.setItem('roomBookings', JSON.stringify(allBookings));
+
+                // Send Data to Google Sheets
+                try {
+                    await fetch(GOOGLE_SHEETS_API_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ day, period, name, dept, purpose })
+                    });
+                    console.log("Data sent to Google Sheets");
+                } catch (error) {
+                    console.error("Error sending data:", error);
+                }
+            } else {
+                alert("Please fill all fields before booking!");
+            }
+        }
+
+        async function showAllPurposes() {
+            const purposeList = document.getElementById('purposeList');
+            purposeList.innerHTML = '<h3>All Bookings</h3>';
+            let bookings = "";
+
+            try {
+                const response = await fetch(GOOGLE_SHEETS_API_URL);
+                const data = await response.json();
+
+                data.forEach(booking => {
+                    bookings += `<div class="purpose-item"><div><strong>${booking.day} Period ${booking.period}</strong><br>${booking.purpose}</div><div>${booking.name}<br>${booking.dept}</div></div>`;
+                });
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                bookings = '<p>Unable to fetch bookings from Google Sheets.</p>';
+            }
+
+            purposeList.innerHTML += bookings || '<p>No bookings found</p>';
+        }
+
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(GOOGLE_SHEETS_API_URL);
+                const data = await response.json();
+                data.forEach(booking => {
+                    document.getElementById(`status_${booking.day}_${booking.period}`).innerHTML = `<strong>${booking.purpose}</strong><br><small>${booking.name} (${booking.dept})</small>`;
+                });
+            } catch (error) {
+                console.error("Error syncing with Google Sheets:", error);
+            }
+        });
+    </script>
+
+</body>
+</html>
